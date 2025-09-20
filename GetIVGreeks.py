@@ -461,6 +461,105 @@ class CalcIvGreeks:
             * NORM_CDF(-self.BS_d2(sigma))  # noqa: E501
         )  # noqa: E501
 
+    def EpsilonCall(self, sigma: float):
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        return -self.S * self.T * EXP(-q * self.T) * NORM_CDF(d1) / 100
+
+    def EpsilonPut(self, sigma: float):
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        return self.S * self.T * EXP(-q * self.T) * NORM_CDF(-d1) / 100
+
+    def Vanna(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return -EXP(-q * self.T) * NORM_PDF(d1) * (d2 / sigma)
+
+    def CharmCall(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return (q * EXP(-q * self.T) * NORM_CDF(d1) - EXP(-q * self.T) * NORM_PDF(d1) * (2 * (self.r - q) * self.T - d2 * sigma * SQRT(self.T)) / (2 * self.T * sigma * SQRT(self.T))) / 365  # noqa: E501
+
+    def CharmPut(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return (-q * EXP(-q * self.T) * NORM_CDF(-d1) - EXP(-q * self.T) * NORM_PDF(d1) * (2 * (self.r - q) * self.T - d2 * sigma * SQRT(self.T)) / (2 * self.T * sigma * SQRT(self.T))) / 365  # noqa: E501
+
+    def Vomma(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return self.Vega(sigma) * d1 * d2 / sigma
+
+    def Veta(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return -self.S * EXP(-q * self.T) * NORM_PDF(d1) * SQRT(self.T) * (q + ((self.r - q) * d1) / (sigma * SQRT(self.T)) - ((1 + d1 * d2) / (2 * self.T))) / (365 * 100)  # noqa: E501
+
+    def Speed(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d1 = self.BS_d1(sigma)
+        return -self.Gamma(sigma) / self.S * (d1 / (sigma * SQRT(self.T)) + 1)
+
+    def Zomma(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return self.Gamma(sigma) * ((d1 * d2 - 1) / sigma)
+
+    def Color(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        q = 0.0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return (-EXP(-q * self.T) * (NORM_PDF(d1) / (2 * self.S * self.T * sigma * SQRT(self.T))) * (2 * q * self.T + 1 + ((2 * (self.r - q) * self.T - d2 * sigma * SQRT(self.T)) / (sigma * SQRT(self.T))) * d1)) / 365  # noqa: E501
+
+    def Ultima(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d1 = self.BS_d1(sigma)
+        d2 = self.BS_d2(sigma)
+        return -self.Vega(sigma) / sigma**2 * (d1 * d2 * (1 - d1 * d2) + d1**2 + d2**2)
+
+    def DualDeltaCall(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d2 = self.BS_d2(sigma)
+        return -EXP(-self.r * self.T) * NORM_CDF(d2)
+
+    def DualDeltaPut(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d2 = self.BS_d2(sigma)
+        return EXP(-self.r * self.T) * NORM_CDF(-d2)
+
+    def DualGamma(self, sigma: float) -> float:
+        if sigma <= self.IV_LOWER_BOUND:
+            return 0
+        d2 = self.BS_d2(sigma)
+        return EXP(-self.r * self.T) * (NORM_PDF(d2) / (self.K * sigma * SQRT(self.T)))
+
     def ImplVolWithBrent(self, OptionLtp, PricingFunction):
         try:
             ImplVol = brentq(
@@ -520,5 +619,19 @@ class CalcIvGreeks:
                 "Gamma": round(self.Gamma(StrikeIV), 4),
                 "RhoCall": round(self.RhoCall(CallIV) / 1000, 3),
                 "RhoPut": round(self.RhoPut(PutIV) / 1000, 3),
+                "EpsilonCall": round(self.EpsilonCall(StrikeIV), 4),
+                "EpsilonPut": round(self.EpsilonPut(StrikeIV), 4),
+                "Vanna": round(self.Vanna(StrikeIV), 4),
+                "CharmCall": round(self.CharmCall(StrikeIV), 4),
+                "CharmPut": round(self.CharmPut(StrikeIV), 4),
+                "Vomma": round(self.Vomma(StrikeIV) / 10000, 4),
+                "Veta": round(self.Veta(StrikeIV), 4),
+                "Speed": round(self.Speed(StrikeIV), 4),
+                "Zomma": round(self.Zomma(StrikeIV), 4),
+                "Color": round(self.Color(StrikeIV), 4),
+                "Ultima": round(self.Ultima(StrikeIV) / 1000000, 4),
+                "DualDeltaCall": round(self.DualDeltaCall(StrikeIV), 4),
+                "DualDeltaPut": round(self.DualDeltaPut(StrikeIV), 4),
+                "DualGamma": round(self.DualGamma(StrikeIV), 4),
             },
         }
